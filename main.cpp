@@ -154,6 +154,19 @@ void start_bot(dpp::cluster *bot) {
 	cout << "Bot started." << endl;
 }
 
+string test_json(string n, string d, int q, int p)
+{
+    MortalQuest defaultQuest;
+    defaultQuest.name = n;
+    defaultQuest.description = d;
+    defaultQuest.quantity = q;
+    defaultQuest.puntos = p;
+
+    json j { defaultQuest };
+
+    return to_string(j);
+}
+
 int main(int argc, char * argv[])
 {
     std::string token = argv[1];
@@ -174,25 +187,32 @@ int main(int argc, char * argv[])
 
         command_handler.add_command(
             /* Command name */
-            "ping",
+            "quest",
             params,
             /* Command handler */
             [&command_handler](const std::string& command, const dpp::parameter_list_t& parameters, dpp::command_source src) {
-                //if (parameters.size() == 4) {
-                //    command_handler.reply(dpp::message("Quest Name:\"" + std::get<std::string>(parameters[0].second) 
-                //    + "\" Description:\"" + std::get<std::string>(parameters[1].second)
-                //    + "\" Quantity:" + to_string(std::get<std::int32_t>(parameters[2].second))
-                //    + " Puntos" + to_string(std::get<std::int32_t>(parameters[3].second))
-                //    ), src);
-                //}
-                //else
-                //{
+                if (parameters.size() == 4) {
+                    //stringstream reply;
+                    //reply << "name: " << std::get<std::string>(parameters[0].second)
+                    //<< endl << "description: " << std::get<std::string>(parameters[1].second)
+                    //<< endl << "quantity: " << std::to_string(std::get<std::int64_t>(parameters[2].second))
+                    //<< endl << "puntos: " << std::to_string(std::get<std::int64_t>(parameters[3].second));
+
+                    //command_handler.reply(dpp::message(reply.str()), src);
+
+                    string reply = test_json(std::get<std::string>(parameters[0].second), std::get<std::string>(parameters[1].second)
+                    ,std::get<std::int64_t>(parameters[2].second), std::get<std::int64_t>(parameters[3].second));
+
+                    command_handler.reply(dpp::message(reply), src);
+                }
+                else
+                {
                     command_handler.reply(dpp::message("What the fuck?"), src);
-                //}
+                }
             },
  
             /* Command description */
-            "A test ping command"
+            "Command to add quests."
         );
  
         /* NOTE: We must call this to ensure slash commands are registered.
