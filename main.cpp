@@ -78,29 +78,6 @@ void quest_creator()
 void start_bot(dpp::cluster *bot) {
 	cout << "Bot starting." << endl;
 
-	bot->on_message_create([bot](const dpp::message_create_t &event) {
-		if (event.msg.content == "papers") {
-			cout << event.msg.author.username + " requested papers" << endl;
-			bot->message_create(dpp::message(
-				event.msg.channel_id,
-				"username:" + event.msg.author.username +
-					" snowflake:" + to_string(event.msg.author.id)));
-		} else if (event.msg.content.rfind("addquest", 0) == 0) {
-            cout << event.msg.author.username + " requested addquest" << endl;
-            char * cstr = new char [event.msg.content.length()+1];
-            std::strcpy (cstr, event.msg.content.c_str());
-            char * p = std::strtok (cstr," ");
-            p = std::strtok(NULL," ");
-            cout << "name " << p << endl;
-            p = std::strtok(NULL," ");
-            cout << "description " << p << endl;
-            p = std::strtok(NULL," ");
-            cout << "quantity " << p << endl;
-            p = std::strtok(NULL," ");
-            cout << "puntos " << p << endl;
-        }
-	});
-
     dpp::commandhandler command_handler(bot);
     command_handler.add_prefix(".").add_prefix("/");
 
@@ -172,7 +149,7 @@ int main(int argc, char * argv[])
     std::string token = argv[1];
     dpp::cluster bot(token,  dpp::i_all_intents );
  
-    bot.on_log(dpp::utility::cout_logger());
+    //bot.on_log(dpp::utility::cout_logger());
  
     dpp::commandhandler command_handler(&bot);
     command_handler.add_prefix(".").add_prefix("/");
@@ -200,10 +177,16 @@ int main(int argc, char * argv[])
 
                     //command_handler.reply(dpp::message(reply.str()), src);
 
-                    string reply = test_json(std::get<std::string>(parameters[0].second), std::get<std::string>(parameters[1].second)
+                    string jsonQuest = test_json(std::get<std::string>(parameters[0].second), std::get<std::string>(parameters[1].second)
                     ,std::get<std::int64_t>(parameters[2].second), std::get<std::int64_t>(parameters[3].second));
 
-                    command_handler.reply(dpp::message(reply), src);
+                    std::ofstream outfile(filePath + "/build/mortalquests_test.json");
+
+                    outfile << jsonQuest;
+
+                    outfile.close();
+
+                    command_handler.reply(dpp::message(jsonQuest), src);
                 }
                 else
                 {
@@ -226,35 +209,4 @@ int main(int argc, char * argv[])
     bot.start(dpp::st_wait);
  
     return 0;
-
-    //if (argc != 3)
-    //{
-    //    std::cout << "Something is missing." << std::endl;
-    //    return -1;
-    //}
-    //
-    //std::cout << "Creating Bot and Thread." << std::endl;
-    //
-    //std::cout << "Filepath is: " << argv[2] << std::endl;
-    //filePath = argv[2];
-    //
-    //std::string cmd;
-    //std::string token = argv[1];
-    //bool running = true;
-    //dpp::cluster bot(token, dpp::i_default_intents | dpp::i_message_content);
-    //std::thread bot_life(start_bot, &bot);
-    //
-    // while (running)
-    // {
-    //    std::cin >> cmd;
-    //
-    //    if (cmd == "end")
-    //    {
-    //        std::cout << "MortalBot shut down requested." << std::endl;
-    //        running = false;
-    //        bot.shutdown();
-    //        bot_life.~thread();
-    //        return 0;
-    //    }
-    // }
 }
