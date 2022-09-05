@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <vector>
+//#include <openssl/sha.h>
 
 #include <dpp/dpp.h>
 
@@ -16,7 +17,7 @@ using json = nlohmann::json;
 
 using namespace std;
 
-string filePath = "";
+string filePath = "./";
 
 struct MortalQuest{
     string name;
@@ -51,7 +52,7 @@ void questfile_default()
 
     json j { defaultQuest };
 
-    std::ofstream outfile(filePath + "/mortalquests.json");
+    std::ofstream outfile(filePath + "quests/mortalquests.json");
 
     outfile << to_string(j);
 
@@ -75,61 +76,6 @@ void quest_creator()
         questfile_loading();
 }
 
-void start_bot(dpp::cluster *bot) {
-	cout << "Bot starting." << endl;
-
-    dpp::commandhandler command_handler(bot);
-    command_handler.add_prefix(".").add_prefix("/");
-
-    bot->on_ready([&command_handler](const dpp::ready_t &event) {
- 
-        command_handler.add_command(
-            /* Command name */
-            "quests",
- 
-            /* Parameters */
-            {
-                {"Name", dpp::param_info(dpp::pt_string, false, "Nom de la quete.") }
-                ,{"Description", dpp::param_info(dpp::pt_string, false, "Description de la quete.") }
-                ,{"Quantity", dpp::param_info(dpp::pt_integer, false, "Nombre de completion maximum.") }
-                ,{"Puntos", dpp::param_info(dpp::pt_integer, false, "Nombre de puntos comme recompense.") }
-            },
- 
-            /* Command handler */
-            [&command_handler](const std::string& command, const dpp::parameter_list_t& parameters, dpp::command_source src) {
-                std::string name;
-                std::string description;
-                std::int64_t quantity;
-                std::int64_t puntos;
-                if (!parameters.empty()) {
-                    name = std::get<std::string>(parameters[0].second);
-                    description = std::get<std::string>(parameters[1].second);
-                    quantity = std::get<std::int64_t>(parameters[2].second);
-                    puntos = std::get<std::int64_t>(parameters[3].second);
-                }
-                command_handler.reply(dpp::message("Quest Name:\"" + name 
-                + "\" Description:\"" + description
-                + "\" Quantity:" + to_string(quantity)
-                + " Puntos" + to_string(puntos)
-                ), src);
-            },
- 
-            /* Command description */
-            "A quest command"
-        );
- 
-        /* NOTE: We must call this to ensure slash commands are registered.
-         * This does a bulk register, which will replace other commands
-         * that are registered already!
-         */
-        command_handler.register_commands();
-    });
-
-	//quest_creator();
-    
-    bot->start();
-	cout << "Bot started." << endl;
-}
 
 string test_json(string n, string d, int q, int p)
 {
@@ -144,6 +90,28 @@ string test_json(string n, string d, int q, int p)
     return to_string(j);
 }
 
+MortalQuest create_moquest(string n, string d, int q, int p)
+{
+    MortalQuest quest;
+    quest.name = n;
+    quest.description = d;
+    quest.quantity = q;
+    quest.puntos = p;
+
+    return quest;
+}
+
+//string to_sha1(string org)
+//{
+//    unsigned char hash[SHA_DIGEST_LENGTH];
+//
+//    SHA1(org.c_str(), sizeof(org) - 1, hash);
+//
+//    string res { hash };
+//
+//    return res;
+//}
+
 int main(int argc, char * argv[])
 {
     std::string token = argv[1];
@@ -153,57 +121,45 @@ int main(int argc, char * argv[])
  
     dpp::commandhandler command_handler(&bot);
     command_handler.add_prefix(".").add_prefix("/");
+
     bot.on_ready([&command_handler](const dpp::ready_t &event) {
 
-        vector<std::pair<string, dpp::param_info>> params;
+    vector<std::pair<string, dpp::param_info>> params;
+    params.push_back({"name", dpp::param_info(dpp::pt_string, false, "Nom de la quete.")});
+    params.push_back({"description", dpp::param_info(dpp::pt_string, false, "Description de la quete.")});
+    params.push_back({"quantity", dpp::param_info(dpp::pt_integer, false, "Nombre de completion maximum.")});
+    params.push_back({"puntos", dpp::param_info(dpp::pt_integer, false, "Nombre de puntos comme recompense.")});
 
-        params.push_back({"name", dpp::param_info(dpp::pt_string, false, "Nom de la quete.")});
-        params.push_back({"description", dpp::param_info(dpp::pt_string, false, "Description de la quete.")});
-        params.push_back({"quantity", dpp::param_info(dpp::pt_integer, false, "Nombre de completion maximum.")});
-        params.push_back({"puntos", dpp::param_info(dpp::pt_integer, false, "Nombre de puntos comme recompense.")});
+    command_handler.add_command(
+        "quest",
+        params,
+        [&command_handler](const std::string& command, const dpp::parameter_list_t& parameters, dpp::command_source src) {
+            if (parameters.size() == 4) {
+                MortalQuest moquest = create_moquest(std::get<std::string>(parameters[0].second), std::get<std::string>(parameters[1].second)
+                ,std::get<std::int64_t>(parameters[2].second), std::get<std::int64_t>(parameters[3].second));
 
-        command_handler.add_command(
-            /* Command name */
-            "quest",
-            params,
-            /* Command handler */
-            [&command_handler](const std::string& command, const dpp::parameter_list_t& parameters, dpp::command_source src) {
-                if (parameters.size() == 4) {
-                    //stringstream reply;
-                    //reply << "name: " << std::get<std::string>(parameters[0].second)
-                    //<< endl << "description: " << std::get<std::string>(parameters[1].second)
-                    //<< endl << "quantity: " << std::to_string(std::get<std::int64_t>(parameters[2].second))
-                    //<< endl << "puntos: " << std::to_string(std::get<std::int64_t>(parameters[3].second));
+                json j { moquest };
 
-                    //command_handler.reply(dpp::message(reply.str()), src);
+                //std::ofstream outfile(filePath + "/quests/" + to_sha1(moquest.name) + ".json");
+                std::ofstream outfile(filePath + "/quests/" + moquest.name + ".json");
+                outfile << j;
+                outfile.close();
 
-                    string jsonQuest = test_json(std::get<std::string>(parameters[0].second), std::get<std::string>(parameters[1].second)
-                    ,std::get<std::int64_t>(parameters[2].second), std::get<std::int64_t>(parameters[3].second));
-
-                    std::ofstream outfile(filePath + "/build/mortalquests_test.json");
-
-                    outfile << jsonQuest;
-
-                    outfile.close();
-
-                    command_handler.reply(dpp::message(jsonQuest), src);
-                }
-                else
-                {
-                    command_handler.reply(dpp::message("What the fuck?"), src);
-                }
-            },
- 
-            /* Command description */
-            "Command to add quests."
-        );
+                command_handler.reply(dpp::message("New quest created " + moquest.name), src);
+            }
+            else
+            {
+                command_handler.reply(dpp::message("What the fuck?"), src);
+            }
+        },
+        "Command to add quests."
+    );
  
         /* NOTE: We must call this to ensure slash commands are registered.
          * This does a bulk register, which will replace other commands
          * that are registered already!
          */
-        command_handler.register_commands();
- 
+        command_handler.register_commands(); 
     });
  
     bot.start(dpp::st_wait);
