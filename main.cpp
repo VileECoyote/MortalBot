@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <vector>
-//#include <openssl/sha.h>
+#include <openssl/sha.h>
 
 #include <dpp/dpp.h>
 
@@ -101,23 +101,26 @@ MortalQuest create_moquest(string n, string d, int q, int p)
     return quest;
 }
 
-//string to_sha1(string org)
-//{
-//    unsigned char hash[SHA_DIGEST_LENGTH];
-//
-//    SHA1(org.c_str(), sizeof(org) - 1, hash);
-//
-//    string res { hash };
-//
-//    return res;
-//}
+void to_sha1(string org)
+{
+    unsigned char hash[20];
+
+    SHA1((unsigned char*)org.c_str(), org.size(), hash);
+
+    std::stringstream shastr;
+    for (const auto &byte: hash)
+    {
+        shastr << std::setw(2) << (char)byte;
+    }
+    cout << shastr.str() << endl;
+}
 
 int main(int argc, char * argv[])
 {
     std::string token = argv[1];
     dpp::cluster bot(token,  dpp::i_all_intents );
  
-    //bot.on_log(dpp::utility::cout_logger());
+    bot.on_log(dpp::utility::cout_logger());
  
     dpp::commandhandler command_handler(&bot);
     command_handler.add_prefix(".").add_prefix("/");
@@ -141,15 +144,13 @@ int main(int argc, char * argv[])
                 json j { moquest };
 
                 //std::ofstream outfile(filePath + "/quests/" + to_sha1(moquest.name) + ".json");
-                std::ofstream outfile(filePath + "/quests/" + moquest.name + ".json");
-                outfile << j;
-                outfile.close();
+                //std::ofstream outfile(filePath + "/quests/" + moquest.name + ".json");
+                //outfile << j;
+                //outfile.close();
 
-                command_handler.reply(dpp::message("New quest created " + moquest.name), src);
-            }
-            else
-            {
-                command_handler.reply(dpp::message("What the fuck?"), src);
+                to_sha1(moquest.name);
+
+                command_handler.reply(dpp::message("New quest created : " + moquest.name), src);
             }
         },
         "Command to add quests."
@@ -161,6 +162,8 @@ int main(int argc, char * argv[])
          */
         command_handler.register_commands(); 
     });
+
+    cout << "Bot starting." << endl;
  
     bot.start(dpp::st_wait);
  
