@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <vector>
-#include <openssl/sha.h>
+#include <openssl/evp.h>
 
 #include <dpp/dpp.h>
 
@@ -101,18 +101,28 @@ MortalQuest create_moquest(string n, string d, int q, int p)
     return quest;
 }
 
-void to_sha1(string org)
+string to_sha1(string org)
 {
-    unsigned char hash[20];
+    std::stringstream result;
+    EVP_MD_CTX *mdctx;  
+    const EVP_MD *md;  
+    unsigned char md_value[EVP_MAX_MD_SIZE];  
+    unsigned int md_len;  
+  
+    md = EVP_sha1();  
+    mdctx = EVP_MD_CTX_create();  
+    EVP_DigestInit_ex(mdctx, md, NULL);  
+    EVP_DigestUpdate(mdctx, org.c_str(), sizeof(org)-1);  
+  
+    EVP_DigestFinal_ex(mdctx, md_value, &md_len);  
+    EVP_MD_CTX_destroy(mdctx);
 
-    SHA1((unsigned char*)org.c_str(), org.size(), hash);
-
-    std::stringstream shastr;
-    for (const auto &byte: hash)
-    {
-        shastr << std::setw(2) << (char)byte;
+    for (int i = 0; i < md_len; i++){
+        result << hex << (int)md_value[i];
     }
-    cout << shastr.str() << endl;
+
+    EVP_cleanup();  
+    return result.str();
 }
 
 int main(int argc, char * argv[])
@@ -142,13 +152,11 @@ int main(int argc, char * argv[])
                 ,std::get<std::int64_t>(parameters[2].second), std::get<std::int64_t>(parameters[3].second));
 
                 json j { moquest };
+                string sha1 = to_sha1(moquest.name);
 
-                //std::ofstream outfile(filePath + "/quests/" + to_sha1(moquest.name) + ".json");
-                //std::ofstream outfile(filePath + "/quests/" + moquest.name + ".json");
-                //outfile << j;
-                //outfile.close();
-
-                to_sha1(moquest.name);
+                std::ofstream outfile(filePath + "/quests/moq_" + sha1 + ".json");
+                outfile << j;
+                outfile.close();
 
                 command_handler.reply(dpp::message("New quest created : " + moquest.name), src);
             }
