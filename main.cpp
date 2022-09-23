@@ -117,7 +117,7 @@ string to_sha1(string org)
     EVP_DigestFinal_ex(mdctx, md_value, &md_len);  
     EVP_MD_CTX_destroy(mdctx);
 
-    for (int i = 0; i < md_len; i++){
+    for (uint i = 0; i < md_len; i++){
         result << hex << (int)md_value[i];
     }
 
@@ -132,43 +132,58 @@ int main(int argc, char * argv[])
  
     bot.on_log(dpp::utility::cout_logger());
  
-    dpp::commandhandler command_handler(&bot);
-    command_handler.add_prefix(".").add_prefix("/");
+    /* The event is fired when someone issues your commands */
+    bot.on_slashcommand([&bot](const dpp::slashcommand_t & event) {
+        /* Check which command they ran */
+        if (event.command.get_command_name() == "quest") {
+            /* Fetch a parameter value from the command parameters */
+            std::string name = std::get<std::string>(event.get_parameter("name"));
+            std::string description = std::get<std::string>(event.get_parameter("description"));
+            std::int quantity = std::get<std::int64_t>(event.get_parameter("quantity"));
+            std::int puntos = std::get<std::int64_t>(event.get_parameter("puntos"));
 
-    bot.on_ready([&command_handler](const dpp::ready_t &event) {
+            MortalQuest moquest = create_moquest(name, description, quantity, puntos);
 
-    vector<std::pair<string, dpp::param_info>> params;
-    params.push_back({"name", dpp::param_info(dpp::pt_string, false, "Nom de la quete.")});
-    params.push_back({"description", dpp::param_info(dpp::pt_string, false, "Description de la quete.")});
-    params.push_back({"quantity", dpp::param_info(dpp::pt_integer, false, "Nombre de completion maximum.")});
-    params.push_back({"puntos", dpp::param_info(dpp::pt_integer, false, "Nombre de puntos comme recompense.")});
-
-    command_handler.add_command(
-        "quest",
-        params,
-        [&command_handler](const std::string& command, const dpp::parameter_list_t& parameters, dpp::command_source src) {
-            if (parameters.size() == 4) {
-                MortalQuest moquest = create_moquest(std::get<std::string>(parameters[0].second), std::get<std::string>(parameters[1].second)
-                ,std::get<std::int64_t>(parameters[2].second), std::get<std::int64_t>(parameters[3].second));
-
-                json j { moquest };
-                string sha1 = to_sha1(moquest.name);
-
-                std::ofstream outfile(filePath + "/quests/moq_" + sha1 + ".json");
-                outfile << j;
-                outfile.close();
-
-                command_handler.reply(dpp::message("New quest created : " + moquest.name), src);
-            }
-        },
-        "Command to add quests."
-    );
+            json j { moquest };
+            string sha1 = to_sha1(moquest.name);
+            string fileH = filePath + "quests/moq_" + sha1 + ".json";
+            std::ofstream outfile(fileH);
+            outfile << j;
+            outfile.close();
+            /* Reply to the command. There is an overloaded version of this
+            * call that accepts a dpp::message so you can send embeds.
+            */
+            event.reply(std::string("n:") + name
+            + std::string(" d:") + description
+            + std::string(" f:") + fileH
+            );
+        }
+    });
  
-        /* NOTE: We must call this to ensure slash commands are registered.
-         * This does a bulk register, which will replace other commands
-         * that are registered already!
-         */
-        command_handler.register_commands(); 
+    bot.on_ready([&bot](const dpp::ready_t & event) {
+        if (dpp::run_once<struct register_bot_commands>()) {
+ 
+            /* Create a new global command on ready event */
+            dpp::slashcommand newcommand("quest", "Nouvelle quete cree.", bot.me.id);
+            newcommand.add_option(
+                dpp::command_option(dpp::co_string, "name", "Nom de la quete.", true).
+                set_min_length(4).set_max_length(20)
+            );
+            newcommand.add_option(
+                dpp::command_option(dpp::co_string, "description", "Description de la quete.", true).
+                set_min_length(4).set_max_length(250)
+            );
+            newcommand.add_option(
+                dpp::command_option(dpp::co_integer, "quantity", "Nombre de completion maximum.", true).
+                set_min_value(0).set_max_value(INT_MAX)
+            );
+            newcommand.add_option(
+                dpp::command_option(dpp::co_integer, "puntos", "Nombre de puntos comme recompense.", true).
+                set_min_length(0).set_max_length(INT_MAX)
+            );
+            /* Register the command */
+            bot.global_command_create(newcommand);
+        }
     });
 
     cout << "Bot starting." << endl;
