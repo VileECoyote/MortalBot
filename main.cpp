@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <vector>
 #include <openssl/evp.h>
+#include <openssl/sha.h>
 
 #include <dpp/dpp.h>
 
@@ -103,26 +104,16 @@ MortalQuest create_moquest(string n, string d, int q, int p)
 
 string to_sha1(string org)
 {
-    std::stringstream result;
-    EVP_MD_CTX *mdctx;  
-    const EVP_MD *md;  
-    unsigned char md_value[EVP_MAX_MD_SIZE];  
-    unsigned int md_len;  
-  
-    md = EVP_sha1();  
-    mdctx = EVP_MD_CTX_create();  
-    EVP_DigestInit_ex(mdctx, md, NULL);  
-    EVP_DigestUpdate(mdctx, org.c_str(), sizeof(org)-1);  
-  
-    EVP_DigestFinal_ex(mdctx, md_value, &md_len);  
-    EVP_MD_CTX_destroy(mdctx);
+    char data[org.size()+1];
+    strcpy(data, org.c_str());
+    size_t length = strlen(data);
+    unsigned char hash[20];
+    //std::vector<unsigned char>(data.data(), data.data() + data.length() + 1);
 
-    for (uint i = 0; i < md_len; i++){
-        result << hex << (int)md_value[i];
-    }
-
-    EVP_cleanup();  
-    return result.str();
+    SHA1((unsigned char *)data, length, hash);
+    std::string s( reinterpret_cast< char const* >(hash) ) ;
+    return s;
+    
 }
 
 int main(int argc, char * argv[])
@@ -132,57 +123,81 @@ int main(int argc, char * argv[])
  
     bot.on_log(dpp::utility::cout_logger());
  
-    /* The event is fired when someone issues your commands */
     bot.on_slashcommand([&bot](const dpp::slashcommand_t & event) {
-        /* Check which command they ran */
         if (event.command.get_command_name() == "quest") {
-            /* Fetch a parameter value from the command parameters */
+
             std::string name = std::get<std::string>(event.get_parameter("name"));
             std::string description = std::get<std::string>(event.get_parameter("description"));
-            std::int quantity = std::get<std::int64_t>(event.get_parameter("quantity"));
-            std::int puntos = std::get<std::int64_t>(event.get_parameter("puntos"));
+            int quantity = std::get<std::int64_t>(event.get_parameter("quantity"));
+            int puntos = std::get<std::int64_t>(event.get_parameter("puntos"));
 
             MortalQuest moquest = create_moquest(name, description, quantity, puntos);
 
             json j { moquest };
+
+            
+            
             string sha1 = to_sha1(moquest.name);
+            cout << "SHA1 : " + moquest.name + " => " +  sha1 << endl;
             string fileH = filePath + "quests/moq_" + sha1 + ".json";
             std::ofstream outfile(fileH);
             outfile << j;
             outfile.close();
-            /* Reply to the command. There is an overloaded version of this
-            * call that accepts a dpp::message so you can send embeds.
-            */
-            event.reply(std::string("n:") + name
+            cout << fileH + " created." << endl;
+
+            event.reply(std::string("Quest Added - "
+            + std::string("n: ") + name
             + std::string(" d:") + description
             + std::string(" f:") + fileH
-            );
+            ));
         }
+        else if(event.command.get_command_name() == "-quest") {
+            std::string name = std::get<std::string>(event.get_parameter("name"));
+            string sha1 = to_sha1(name);
+            cout << "SHA1 : " + name + " => " +  sha1 << endl;
+            string fileH = filePath + "quests/moq_" + sha1 + ".json";
+            if( remove(fileH.c_str()) != 0 ) {
+                perror( "Error deleting quest" );
+                cout << "Can't delete " + fileH << endl;
+            }
+            else
+                puts( "Quest successfully deleted");
+        }
+                
     });
  
     bot.on_ready([&bot](const dpp::ready_t & event) {
         if (dpp::run_once<struct register_bot_commands>()) {
- 
-            /* Create a new global command on ready event */
-            dpp::slashcommand newcommand("quest", "Nouvelle quete cree.", bot.me.id);
-            newcommand.add_option(
+
+            // /quest 
+            dpp::slashcommand addQuestCommand("quest", "Nouvelle quete cree.", bot.me.id);
+            addQuestCommand.add_option(
                 dpp::command_option(dpp::co_string, "name", "Nom de la quete.", true).
                 set_min_length(4).set_max_length(20)
             );
-            newcommand.add_option(
+            addQuestCommand.add_option(
                 dpp::command_option(dpp::co_string, "description", "Description de la quete.", true).
                 set_min_length(4).set_max_length(250)
             );
-            newcommand.add_option(
+            addQuestCommand.add_option(
                 dpp::command_option(dpp::co_integer, "quantity", "Nombre de completion maximum.", true).
                 set_min_value(0).set_max_value(INT_MAX)
             );
-            newcommand.add_option(
+            addQuestCommand.add_option(
                 dpp::command_option(dpp::co_integer, "puntos", "Nombre de puntos comme recompense.", true).
                 set_min_length(0).set_max_length(INT_MAX)
             );
-            /* Register the command */
-            bot.global_command_create(newcommand);
+
+            // -quest
+            dpp::slashcommand deleteQuestCommand("-quest", "Quete suprimee.", bot.me.id);
+            deleteQuestCommand.add_option(
+                dpp::command_option(dpp::co_string, "name", "Nom de la quete a supprimer.", true).
+                set_min_length(4).set_max_length(20)
+            );
+
+            bot.global_command_create(addQuestCommand);
+            bot.global_command_create(deleteQuestCommand);
+
         }
     });
 
