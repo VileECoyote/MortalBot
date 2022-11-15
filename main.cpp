@@ -102,18 +102,27 @@ MortalQuest create_moquest(string n, string d, int q, int p)
     return quest;
 }
 
+std::string GetHexRepresentation(const unsigned char *Bytes, size_t Length)
+{
+    std::string ret;
+    ret.reserve(Length * 2);
+    for(const unsigned char *ptr = Bytes; ptr < Bytes+Length; ++ptr) {
+        char buf[3];
+        sprintf(buf, "%02x", (*ptr)&0xff);
+        ret += buf;
+    }
+    return ret;
+}
+
 string to_sha1(string org)
 {
     char data[org.size()+1];
     strcpy(data, org.c_str());
     size_t length = strlen(data);
     unsigned char hash[20];
-    //std::vector<unsigned char>(data.data(), data.data() + data.length() + 1);
 
     SHA1((unsigned char *)data, length, hash);
-    std::string s( reinterpret_cast< char const* >(hash) ) ;
-    return s;
-    
+    return GetHexRepresentation(hash, 20);
 }
 
 int main(int argc, char * argv[])
@@ -134,8 +143,6 @@ int main(int argc, char * argv[])
             MortalQuest moquest = create_moquest(name, description, quantity, puntos);
 
             json j { moquest };
-
-            
             
             string sha1 = to_sha1(moquest.name);
             cout << "SHA1 : " + moquest.name + " => " +  sha1 << endl;
