@@ -1,12 +1,15 @@
-#include <iostream>
-#include <fstream>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <string>
 #include <thread>
+#include <vector>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <vector>
+
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 
@@ -15,6 +18,8 @@
 #include "json.hpp"
 
 using json = nlohmann::json;
+
+namespace fs = std::filesystem;
 
 using namespace std;
 
@@ -125,6 +130,56 @@ string to_sha1(string org)
     return GetHexRepresentation(hash, 20);
 }
 
+std::vector<MortalQuest> getMortalQuests(const std::string& filePath)
+{
+    std::vector<MortalQuest> quests;
+    // Vérifie que le dossier existe
+    if (!fs::exists(filePath))
+    {
+        std::cerr << "Le dossier " << filePath << " n'existe pas." << std::endl;
+        return quests;
+    }
+
+    // Parcourt tous les fichiers dans le dossier
+    for (const auto& entry : fs::directory_iterator(filePath))
+    {
+        cout << entry.path().stem().string();
+
+        // Ignore les entrées qui ne sont pas des fichiers ou qui ne sont pas des fichiers JSON
+        if (!entry.is_regular_file() || entry.path().extension() != ".json")
+            continue;
+
+        // Vérifie que le nom du fichier commence par "moq_"
+        if (entry.path().stem().string().substr(0, 4) != "moq_")
+            continue;
+
+        // Ouvre le fichier en lecture
+        std::ifstream file(entry.path());
+        if (!file.is_open())
+        {
+            std::cerr << "Erreur lors de l'ouverture du fichier " << entry.path() << std::endl;
+            continue;
+        }
+
+        // Parse le contenu du fichier en JSON
+        json data;
+        file >> data;
+
+        // Pour chaque entrée dans le tableau "quests", ajoute une MortalQuest au vecteur
+        for (const auto& quest : data["quests"])
+        {
+            MortalQuest mortalQuest;
+            mortalQuest.name = quest["name"];
+            mortalQuest.description = quest["description"];
+            mortalQuest.quantity = quest["quantity"];
+            mortalQuest.puntos = quest["puntos"];
+            quests.push_back(mortalQuest);
+        }
+    }
+
+    return quests;
+}
+
 int main(int argc, char * argv[])
 {
     std::string token = argv[1];
@@ -169,6 +224,25 @@ int main(int argc, char * argv[])
             }
             else
                 puts( "Quest successfully deleted");
+                event.reply(std::string("Quest Deleted - "
+                    + std::string("n: ") + name
+                ));
+        }
+        else if(event.command.get_command_name() == "listquest") {
+            cout << "WTF?" << endl;
+
+            std::string fileH = filePath + "quests/";
+
+            vector<MortalQuest> quests = getMortalQuests("/home/stupidcoyote/Desktop/C++/MortalBot/build/quests/");
+
+            std::string questNames = "";
+            for (const auto& quest : quests)
+                questNames += quest.name + " ";
+
+            cout << "names:" << questNames << endl;
+            event.reply(std::string("Quest List - "
+            + questNames
+            ));
         }
                 
     });
@@ -202,8 +276,12 @@ int main(int argc, char * argv[])
                 set_min_length(4).set_max_length(20)
             );
 
+            // listquest
+            dpp::slashcommand listQuestsCommand("listquest", "La liste des quetes disponibles.", bot.me.id);
+
             bot.global_command_create(addQuestCommand);
             bot.global_command_create(deleteQuestCommand);
+            bot.global_command_create(listQuestsCommand);
 
         }
     });
